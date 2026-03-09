@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stolperbeats Pattern Editor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Courier New', monospace;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    padding: 20px;
+    min-height: 100vh;
+  }
+  h1 {
+    text-align: center;
+    color: #e94560;
+    margin-bottom: 16px;
+    font-size: 22px;
+    letter-spacing: 2px;
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .toolbar button, .toolbar label {
+    background: #16213e;
+    color: #e0e0e0;
+    border: 1px solid #0f3460;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .toolbar button:hover, .toolbar label:hover {
+    background: #0f3460;
+  }
+  .toolbar .filename {
+    color: #e94560;
+    font-size: 13px;
+    min-width: 180px;
+    text-align: center;
+  }
+  #fileInput { display: none; }
+
+  .pattern-nav {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .pattern-nav button {
+    background: #16213e;
+    color: #e0e0e0;
+    border: 1px solid #0f3460;
+    width: 36px;
+    height: 28px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    border-radius: 3px;
+    transition: background 0.15s;
+  }
+  .pattern-nav button:hover { background: #0f3460; }
+  .pattern-nav button.active {
+    background: #e94560;
+    border-color: #e94560;
+    color: #fff;
+  }
+  .pattern-nav button.has-data {
+    border-bottom: 2px solid #53d769;
+  }
+
+  .grid-container {
+    overflow-x: auto;
+    margin-bottom: 20px;
+  }
+  .track-section {
+    margin-bottom: 12px;
+  }
+  .track-section h3 {
+    color: #e94560;
+    font-size: 11px;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    opacity: 0.6;
+  }
+  .track-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2px;
+  }
+  .track-row.drag-over {
+    outline: 2px dashed #53d769;
+    outline-offset: -2px;
+    border-radius: 4px;
+  }
+  .track-label {
+    width: 70px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #a0a0c0;
+    flex-shrink: 0;
+    text-align: right;
+    padding-right: 10px;
+    cursor: default;
+  }
+  .track-label.has-sample {
+    color: #53d769;
+  }
+  .track-label .sample-name {
+    display: block;
+    font-size: 8px;
+    font-weight: normal;
+    color: #666;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 70px;
+  }
+  .steps {
+    display: flex;
+    gap: 2px;
+  }
+  .step-group {
+    display: flex;
+    gap: 2px;
+    margin-right: 6px;
+  }
+  .step-group:last-child { margin-right: 0; }
+  .step {
+    width: 28px;
+    height: 28px;
+    border: 1px solid #0f3460;
+    background: #16213e;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.1s;
+    position: relative;
+  }
+  .step:hover { background: #1a2a50; }
+  .step.on {
+    background: #e94560;
+    border-color: #e94560;
+  }
+  .step.on:hover { background: #d63a55; }
+  /* beat markers every 4 steps */
+  .step.beat-marker { border-top: 2px solid #0f3460; }
+
+  /* track colors */
+  .track-kick .step.on { background: #e94560; border-color: #e94560; }
+  .track-snare .step.on { background: #f5a623; border-color: #f5a623; }
+  .track-hihat1 .step.on { background: #53d769; border-color: #53d769; }
+  .track-hihat2 .step.on { background: #4fc3f7; border-color: #4fc3f7; }
+  .track-perc1 .step.on { background: #ab47bc; border-color: #ab47bc; }
+  .track-perc2 .step.on { background: #ff7043; border-color: #ff7043; }
+
+  .track-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 70px;
+    margin-bottom: 4px;
+    margin-top: 2px;
+  }
+  .track-controls button {
+    background: #16213e;
+    color: #a0a0c0;
+    border: 1px solid #0f3460;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 10px;
+    border-radius: 3px;
+  }
+  .track-controls button:hover { background: #0f3460; color: #e0e0e0; }
+  .track-controls label {
+    font-size: 10px;
+    color: #666;
+  }
+  .track-controls select {
+    background: #16213e;
+    color: #a0a0c0;
+    border: 1px solid #0f3460;
+    padding: 2px 4px;
+    font-family: inherit;
+    font-size: 10px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .step.dimmed {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+  .step.playing {
+    outline: 2px solid #fff;
+    outline-offset: -2px;
+    z-index: 1;
+  }
+
+  .step-numbers {
+    display: flex;
+    gap: 2px;
+    margin-left: 70px;
+    margin-bottom: 4px;
+  }
+  .step-numbers .step-group { display: flex; gap: 2px; margin-right: 6px; }
+  .step-numbers .step-group:last-child { margin-right: 0; }
+  .step-num {
+    width: 28px;
+    text-align: center;
+    font-size: 9px;
+    color: #555;
+  }
+
+  .section-label {
+    color: #0f3460;
+    font-size: 10px;
+    margin-left: 70px;
+    margin-bottom: 2px;
+    letter-spacing: 1px;
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .actions button {
+    background: #16213e;
+    color: #e0e0e0;
+    border: 1px solid #0f3460;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    border-radius: 4px;
+  }
+  .actions button:hover { background: #0f3460; }
+  .actions button.danger { border-color: #e94560; color: #e94560; }
+  .actions button.danger:hover { background: #e94560; color: #fff; }
+
+  .status {
+    text-align: center;
+    font-size: 12px;
+    color: #53d769;
+    margin-top: 10px;
+    min-height: 18px;
+  }
+</style>
+</head>
+<body>
+
+<h1>STOLPERBEATS PATTERN EDITOR</h1>
+
+<div class="toolbar">
+  <label for="fileInput">Load File</label>
+  <input type="file" id="fileInput" accept=".txt">
+  <button id="saveBtn">Save File</button>
+  <span class="filename" id="filenameDisplay">No file loaded</span>
+  <span style="color:#333">|</span>
+  <button id="playBtn">Play</button>
+  <label style="font-size:13px; color:#a0a0c0;">BPM</label>
+  <input type="number" id="bpmInput" value="120" min="40" max="999" style="
+    width:50px; background:#16213e; color:#e0e0e0; border:1px solid #0f3460;
+    padding:6px 4px; font-family:inherit; font-size:13px; border-radius:4px; text-align:center;">
+</div>
+
+<div class="pattern-nav" id="patternNav"></div>
+
+<div class="grid-container" id="gridContainer"></div>
+
+<div class="actions">
+  <button id="copyBtn">Copy Pattern</button>
+  <button id="pasteBtn">Paste Pattern</button>
+  <button id="clearBtn" class="danger">Clear Pattern</button>
+</div>
+
+<div class="status" id="status"></div>
+
+<script>
+const TRACKS = [
+  { name: 'KICK',   steps: 64, groups: 4 },
+  { name: 'SNARE',  steps: 64, groups: 4 },
+  { name: 'HIHAT1', steps: 16, groups: 1 },
+  { name: 'HIHAT2', steps: 16, groups: 1 },
+  { name: 'PERC1',  steps: 16, groups: 1 },
+  { name: 'PERC2',  steps: 16, groups: 1 },
+];
+
+const NUM_PATTERNS = 24;
+let currentPattern = 0;
+let currentFilename = null;
+let clipboard = null;
+
+// length setting per 64-step track: default 64 (no repeat)
+// trackLength[trackIndex] only applies to tracks with 64 steps
+let trackLength = { 0: 64, 1: 64 };
+
+// custom sample buffers per track (null = use synth)
+let sampleBuffers = [null, null, null, null, null, null];
+let sampleNames = ['', '', '', '', '', ''];
+
+// --- IndexedDB for sample persistence ---
+const DB_NAME = 'stolperbeats-samples';
+const DB_STORE = 'samples';
+
+function openSampleDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore(DB_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function saveSampleToDB(trackIndex, arrayBuffer, fileName) {
+  openSampleDB().then(db => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    tx.objectStore(DB_STORE).put({ data: arrayBuffer, name: fileName }, trackIndex);
+  });
+}
+
+function deleteSampleFromDB(trackIndex) {
+  openSampleDB().then(db => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    tx.objectStore(DB_STORE).delete(trackIndex);
+  });
+}
+
+function loadSamplesFromDB() {
+  openSampleDB().then(db => {
+    const tx = db.transaction(DB_STORE, 'readonly');
+    const store = tx.objectStore(DB_STORE);
+    TRACKS.forEach((_, ti) => {
+      const req = store.get(ti);
+      req.onsuccess = () => {
+        if (req.result) {
+          const ctx = getAudioCtx();
+          ctx.decodeAudioData(req.result.data.slice(0), (buffer) => {
+            sampleBuffers[ti] = buffer;
+            sampleNames[ti] = req.result.name;
+            buildGrid();
+          });
+        }
+      };
+    });
+  });
+}
+
+// data[trackIndex][patternIndex] = array of 0/1
+let data = [];
+
+function initData() {
+  data = TRACKS.map(t =>
+    Array.from({ length: NUM_PATTERNS }, () => new Array(t.steps).fill(0))
+  );
+}
+
+initData();
+
+// --- Pattern Nav ---
+function buildPatternNav() {
+  const nav = document.getElementById('patternNav');
+  nav.innerHTML = '';
+  for (let i = 0; i < NUM_PATTERNS; i++) {
+    const btn = document.createElement('button');
+    btn.textContent = i;
+    btn.dataset.ptn = i;
+    if (i === currentPattern) btn.classList.add('active');
+    if (patternHasData(i)) btn.classList.add('has-data');
+    btn.addEventListener('click', () => selectPattern(i));
+    nav.appendChild(btn);
+  }
+}
+
+function patternHasData(ptn) {
+  return TRACKS.some((_, ti) => data[ti][ptn].some(v => v === 1));
+}
+
+function selectPattern(ptn) {
+  currentPattern = ptn;
+  buildPatternNav();
+  buildGrid();
+}
+
+// --- Grid ---
+function buildGrid() {
+  const container = document.getElementById('gridContainer');
+  container.innerHTML = '';
+
+  // 64-step tracks
+  const longTracks = TRACKS.filter(t => t.steps === 64);
+  const shortTracks = TRACKS.filter(t => t.steps === 16);
+
+  // step numbers for 64-step
+  container.appendChild(buildStepNumbers(64));
+
+  longTracks.forEach(track => {
+    const ti = TRACKS.indexOf(track);
+    container.appendChild(buildTrackRow(track, ti));
+    container.appendChild(buildTrackControls(track, ti));
+  });
+
+  // spacer
+  const spacer = document.createElement('div');
+  spacer.style.height = '12px';
+  container.appendChild(spacer);
+
+  // step numbers for 16-step
+  container.appendChild(buildStepNumbers(16));
+
+  shortTracks.forEach(track => {
+    const ti = TRACKS.indexOf(track);
+    container.appendChild(buildTrackRow(track, ti));
+  });
+}
+
+function buildStepNumbers(totalSteps) {
+  const row = document.createElement('div');
+  row.className = 'step-numbers';
+  const numGroups = totalSteps / 16;
+  for (let g = 0; g < numGroups; g++) {
+    const group = document.createElement('div');
+    group.className = 'step-group';
+    for (let s = 0; s < 16; s++) {
+      const num = document.createElement('div');
+      num.className = 'step-num';
+      num.textContent = g * 16 + s + 1;
+      group.appendChild(num);
+    }
+    row.appendChild(group);
+  }
+  return row;
+}
+
+function buildTrackRow(track, trackIndex) {
+  const row = document.createElement('div');
+  row.className = `track-row track-${track.name.toLowerCase()}`;
+
+  // drag & drop for samples
+  row.addEventListener('dragover', (e) => { e.preventDefault(); row.classList.add('drag-over'); });
+  row.addEventListener('dragleave', () => { row.classList.remove('drag-over'); });
+  row.addEventListener('drop', (e) => {
+    e.preventDefault();
+    row.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('audio/')) {
+      loadSampleForTrack(trackIndex, file);
+    }
+  });
+
+  const label = document.createElement('div');
+  label.className = 'track-label';
+  if (sampleBuffers[trackIndex]) label.classList.add('has-sample');
+  label.innerHTML = track.name;
+  if (sampleNames[trackIndex]) {
+    label.innerHTML += `<span class="sample-name">${sampleNames[trackIndex]}</span>`;
+  }
+  label.title = sampleNames[trackIndex] ? `Sample: ${sampleNames[trackIndex]} (click to remove)` : 'Drag audio file here to load sample';
+  if (sampleBuffers[trackIndex]) {
+    label.style.cursor = 'pointer';
+    label.addEventListener('click', () => {
+      sampleBuffers[trackIndex] = null;
+      sampleNames[trackIndex] = '';
+      deleteSampleFromDB(trackIndex);
+      buildGrid();
+      showStatus(`${track.name}: reverted to synth`);
+    });
+  }
+  row.appendChild(label);
+
+  const steps = document.createElement('div');
+  steps.className = 'steps';
+
+  const numGroups = track.steps / 16;
+  for (let g = 0; g < numGroups; g++) {
+    const group = document.createElement('div');
+    group.className = 'step-group';
+    for (let s = 0; s < 16; s++) {
+      const stepIdx = g * 16 + s;
+      const btn = document.createElement('div');
+      btn.className = 'step';
+      if (s % 4 === 0) btn.classList.add('beat-marker');
+      if (data[trackIndex][currentPattern][stepIdx]) btn.classList.add('on');
+      // dim steps beyond the repeat length for 64-step tracks
+      const len = (track.steps === 64) ? trackLength[trackIndex] : track.steps;
+      if (stepIdx >= len) btn.classList.add('dimmed');
+      btn.dataset.track = trackIndex;
+      btn.dataset.step = stepIdx;
+      btn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        toggleStep(trackIndex, stepIdx, btn);
+        startDrag(trackIndex, btn);
+      });
+      btn.addEventListener('mouseenter', (e) => {
+        if (dragging && dragging.track === trackIndex) {
+          applyDrag(trackIndex, stepIdx, btn);
+        }
+      });
+      group.appendChild(btn);
+    }
+    steps.appendChild(group);
+  }
+
+  row.appendChild(steps);
+  return row;
+}
+
+function buildTrackControls(track, trackIndex) {
+  const controls = document.createElement('div');
+  controls.className = 'track-controls';
+
+  const fillBtn = document.createElement('button');
+  const len = trackLength[trackIndex];
+  const reps = len / 16;
+  if (reps >= 2) {
+    fillBtn.textContent = `Fill x${reps}`;
+    fillBtn.title = `Copy first 16 steps across all ${len} steps`;
+    fillBtn.addEventListener('click', () => {
+      fillFromFirst16(trackIndex);
+    });
+  } else {
+    fillBtn.textContent = 'Fill';
+    fillBtn.disabled = true;
+    fillBtn.style.opacity = '0.3';
+    fillBtn.style.cursor = 'default';
+  }
+  controls.appendChild(fillBtn);
+
+  const sep = document.createElement('span');
+  sep.style.color = '#333';
+  sep.textContent = '|';
+  controls.appendChild(sep);
+
+  const lbl = document.createElement('label');
+  lbl.textContent = 'Len:';
+  controls.appendChild(lbl);
+
+  const sel = document.createElement('select');
+  [4, 8, 16, 32, 64].forEach(len => {
+    const opt = document.createElement('option');
+    opt.value = len;
+    opt.textContent = len;
+    if (trackLength[trackIndex] === len) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', () => {
+    trackLength[trackIndex] = parseInt(sel.value);
+    applyRepeat(trackIndex);
+    buildGrid();
+  });
+  controls.appendChild(sel);
+
+  return controls;
+}
+
+function fillFromFirst16(trackIndex) {
+  const len = trackLength[trackIndex];
+  const steps = data[trackIndex][currentPattern];
+  for (let i = 16; i < len; i++) {
+    steps[i] = steps[i % 16];
+  }
+  buildGrid();
+  updatePatternNav();
+  const reps = len / 16;
+  showStatus(`${TRACKS[trackIndex].name}: filled x${reps} from first 16 steps`);
+}
+
+function applyRepeat(trackIndex) {
+  const len = trackLength[trackIndex];
+  if (len >= 64) return;
+  const steps = data[trackIndex][currentPattern];
+  for (let i = len; i < 64; i++) {
+    steps[i] = steps[i % len];
+  }
+}
+
+// --- Drag painting ---
+let dragging = null;
+
+function startDrag(trackIndex, btn) {
+  dragging = {
+    track: trackIndex,
+    value: data[trackIndex][currentPattern][parseInt(btn.dataset.step)]
+  };
+}
+
+function applyDrag(trackIndex, stepIdx, btn) {
+  data[trackIndex][currentPattern][stepIdx] = dragging.value;
+  btn.classList.toggle('on', dragging.value === 1);
+  if (TRACKS[trackIndex].steps === 64 && trackLength[trackIndex] < 64) {
+    applyRepeat(trackIndex);
+    dragging = null;
+    buildGrid();
+  }
+  updatePatternNav();
+}
+
+document.addEventListener('mouseup', () => { dragging = null; });
+
+function toggleStep(trackIndex, stepIdx, btn) {
+  const val = data[trackIndex][currentPattern][stepIdx];
+  data[trackIndex][currentPattern][stepIdx] = val ? 0 : 1;
+  btn.classList.toggle('on', !val);
+  // auto-repeat if length is active for this 64-step track
+  if (TRACKS[trackIndex].steps === 64 && trackLength[trackIndex] < 64) {
+    applyRepeat(trackIndex);
+    dragging = null;
+    buildGrid();
+  }
+  updatePatternNav();
+}
+
+function updatePatternNav() {
+  const btns = document.querySelectorAll('#patternNav button');
+  btns.forEach(btn => {
+    const ptn = parseInt(btn.dataset.ptn);
+    btn.classList.toggle('has-data', patternHasData(ptn));
+  });
+}
+
+// --- File I/O ---
+function parseFile(text) {
+  initData();
+  const lines = text.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const match = trimmed.match(/^(\w+)\s*>\s*PTN(\d+)\s*:\s*(.+);$/);
+    if (!match) continue;
+    const trackName = match[1];
+    const ptn = parseInt(match[2]);
+    const bitsStr = match[3];
+
+    const ti = TRACKS.findIndex(t => t.name === trackName);
+    if (ti === -1 || ptn < 0 || ptn >= NUM_PATTERNS) continue;
+
+    const groups = bitsStr.split(',').map(s => s.trim());
+    let stepIdx = 0;
+    for (const group of groups) {
+      for (const ch of group) {
+        if (ch === '0' || ch === '1') {
+          if (stepIdx < TRACKS[ti].steps) {
+            data[ti][ptn][stepIdx] = parseInt(ch);
+            stepIdx++;
+          }
+        }
+      }
+    }
+  }
+}
+
+function generateFile() {
+  const lines = [];
+  TRACKS.forEach((track, ti) => {
+    if (ti > 0) lines.push('');
+    for (let ptn = 0; ptn < NUM_PATTERNS; ptn++) {
+      const steps = data[ti][ptn];
+      const groups = [];
+      const numGroups = track.steps / 16;
+      for (let g = 0; g < numGroups; g++) {
+        groups.push(steps.slice(g * 16, (g + 1) * 16).join(''));
+      }
+      lines.push(`${track.name} > PTN${ptn}: ${groups.join(', ')};`);
+    }
+  });
+  return lines.join('\n') + '\n';
+}
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  currentFilename = file.name;
+  document.getElementById('filenameDisplay').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    parseFile(ev.target.result);
+    currentPattern = 0;
+    buildPatternNav();
+    buildGrid();
+    showStatus(`Loaded ${file.name}`);
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+  const filename = currentFilename || 'PatternBank000.txt';
+  const content = generateFile();
+  const blob = new Blob([content], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showStatus(`Saved ${filename}`);
+});
+
+// --- Copy/Paste/Clear ---
+document.getElementById('copyBtn').addEventListener('click', () => {
+  clipboard = TRACKS.map((_, ti) => [...data[ti][currentPattern]]);
+  showStatus(`Copied pattern ${currentPattern}`);
+});
+
+document.getElementById('pasteBtn').addEventListener('click', () => {
+  if (!clipboard) { showStatus('Nothing to paste'); return; }
+  TRACKS.forEach((_, ti) => {
+    data[ti][currentPattern] = [...clipboard[ti]];
+  });
+  buildGrid();
+  updatePatternNav();
+  showStatus(`Pasted to pattern ${currentPattern}`);
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  TRACKS.forEach((track, ti) => {
+    data[ti][currentPattern] = new Array(track.steps).fill(0);
+  });
+  buildGrid();
+  updatePatternNav();
+  showStatus(`Cleared pattern ${currentPattern}`);
+});
+
+function showStatus(msg) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3000);
+}
+
+// --- Audio Engine ---
+let audioCtx = null;
+let isPlaying = false;
+let currentPlayStep = -1;
+let displayStep = -1;
+let stepQueue = [];
+let schedulerTimer = null;
+let nextStepTime = 0;
+let noiseBuffer = null;
+
+function getAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // create shared noise buffer
+    const bufLen = audioCtx.sampleRate * 2;
+    noiseBuffer = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) {
+      output[i] = Math.random() * 2 - 1;
+    }
+  }
+  return audioCtx;
+}
+
+function getBPM() {
+  return parseInt(document.getElementById('bpmInput').value) || 120;
+}
+
+function getStepDuration() {
+  return 60 / getBPM() / 4;
+}
+
+// --- Synthesized drum sounds ---
+function cleanupOnEnd(nodes) {
+  const last = nodes[nodes.length - 1];
+  if (last.stop) last.onended = () => nodes.forEach(n => n.disconnect());
+}
+
+function playKick(ctx, time) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(150, time);
+  osc.frequency.exponentialRampToValueAtTime(50, time + 0.08);
+  gain.gain.setValueAtTime(0.8, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.3);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(time);
+  osc.stop(time + 0.3);
+  cleanupOnEnd([gain, osc]);
+}
+
+function playSnare(ctx, time) {
+  // tonal body
+  const osc = ctx.createOscillator();
+  const oscGain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(200, time);
+  oscGain.gain.setValueAtTime(0.4, time);
+  oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+  osc.connect(oscGain);
+  oscGain.connect(ctx.destination);
+  osc.start(time);
+  osc.stop(time + 0.15);
+  cleanupOnEnd([oscGain, osc]);
+  // noise
+  const noise = ctx.createBufferSource();
+  noise.buffer = noiseBuffer;
+  const noiseFilt = ctx.createBiquadFilter();
+  noiseFilt.type = 'bandpass';
+  noiseFilt.frequency.value = 4000;
+  noiseFilt.Q.value = 1;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(0.5, time);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+  noise.connect(noiseFilt);
+  noiseFilt.connect(noiseGain);
+  noiseGain.connect(ctx.destination);
+  noise.start(time);
+  noise.stop(time + 0.15);
+  cleanupOnEnd([noiseGain, noiseFilt, noise]);
+}
+
+function playHihat1(ctx, time) {
+  const noise = ctx.createBufferSource();
+  noise.buffer = noiseBuffer;
+  const filt = ctx.createBiquadFilter();
+  filt.type = 'highpass';
+  filt.frequency.value = 8000;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.25, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+  noise.connect(filt);
+  filt.connect(gain);
+  gain.connect(ctx.destination);
+  noise.start(time);
+  noise.stop(time + 0.05);
+  cleanupOnEnd([gain, filt, noise]);
+}
+
+function playHihat2(ctx, time) {
+  const noise = ctx.createBufferSource();
+  noise.buffer = noiseBuffer;
+  const filt = ctx.createBiquadFilter();
+  filt.type = 'highpass';
+  filt.frequency.value = 5000;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.3, time);
+  gain.gain.setValueAtTime(0.3, time + 0.05);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+  noise.connect(filt);
+  filt.connect(gain);
+  gain.connect(ctx.destination);
+  noise.start(time);
+  noise.stop(time + 0.5);
+  cleanupOnEnd([gain, filt, noise]);
+}
+
+function playPerc1(ctx, time) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(800, time);
+  osc.frequency.exponentialRampToValueAtTime(400, time + 0.05);
+  gain.gain.setValueAtTime(0.35, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(time);
+  osc.stop(time + 0.06);
+  cleanupOnEnd([gain, osc]);
+}
+
+function playPerc2(ctx, time) {
+  // body
+  const osc = ctx.createOscillator();
+  const oscGain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(300, time);
+  osc.frequency.exponentialRampToValueAtTime(150, time + 0.08);
+  oscGain.gain.setValueAtTime(0.35, time);
+  oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+  osc.connect(oscGain);
+  oscGain.connect(ctx.destination);
+  osc.start(time);
+  osc.stop(time + 0.1);
+  cleanupOnEnd([oscGain, osc]);
+  // noise click
+  const noise = ctx.createBufferSource();
+  noise.buffer = noiseBuffer;
+  const filt = ctx.createBiquadFilter();
+  filt.type = 'bandpass';
+  filt.frequency.value = 2000;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(0.2, time);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+  noise.connect(filt);
+  filt.connect(noiseGain);
+  noiseGain.connect(ctx.destination);
+  noise.start(time);
+  noise.stop(time + 0.08);
+  cleanupOnEnd([noiseGain, filt, noise]);
+}
+
+const SOUND_FNS = [playKick, playSnare, playHihat1, playHihat2, playPerc1, playPerc2];
+
+function loadSampleForTrack(trackIndex, file) {
+  const ctx = getAudioCtx();
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const rawData = e.target.result;
+    ctx.decodeAudioData(rawData.slice(0), (buffer) => {
+      sampleBuffers[trackIndex] = buffer;
+      sampleNames[trackIndex] = file.name;
+      saveSampleToDB(trackIndex, rawData, file.name);
+      buildGrid();
+      showStatus(`${TRACKS[trackIndex].name}: loaded ${file.name}`);
+    }, () => {
+      showStatus(`Failed to decode ${file.name}`);
+    });
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function playSampleBuffer(ctx, time, buffer) {
+  const source = ctx.createBufferSource();
+  const gain = ctx.createGain();
+  source.buffer = buffer;
+  source.connect(gain);
+  gain.connect(ctx.destination);
+  source.start(time);
+  source.onended = () => { source.disconnect(); gain.disconnect(); };
+}
+
+function scheduleStep(stepIndex, time) {
+  const ctx = getAudioCtx();
+  TRACKS.forEach((track, ti) => {
+    const s = track.steps === 16 ? stepIndex % 16 : stepIndex;
+    if (data[ti][currentPattern][s]) {
+      if (sampleBuffers[ti]) {
+        playSampleBuffer(ctx, time, sampleBuffers[ti]);
+      } else {
+        SOUND_FNS[ti](ctx, time);
+      }
+    }
+  });
+}
+
+function scheduler() {
+  const ctx = getAudioCtx();
+  const stepDur = getStepDuration();
+  // if we fell too far behind (e.g. tab backgrounded), skip ahead
+  if (nextStepTime < ctx.currentTime - 0.2) {
+    const skipped = Math.floor((ctx.currentTime - nextStepTime) / stepDur);
+    currentPlayStep = (currentPlayStep + skipped) % 64;
+    nextStepTime += skipped * stepDur;
+  }
+  while (nextStepTime < ctx.currentTime + 0.1) {
+    currentPlayStep = (currentPlayStep + 1) % 64;
+    scheduleStep(currentPlayStep, nextStepTime);
+    stepQueue.push({ step: currentPlayStep, time: nextStepTime });
+    nextStepTime += stepDur;
+  }
+}
+
+function startPlayback() {
+  const ctx = getAudioCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  isPlaying = true;
+  currentPlayStep = -1;
+  displayStep = -1;
+  stepQueue = [];
+  nextStepTime = ctx.currentTime;
+  schedulerTimer = setInterval(scheduler, 25);
+  requestAnimationFrame(updatePlayhead);
+  document.getElementById('playBtn').textContent = 'Stop';
+}
+
+function stopPlayback() {
+  isPlaying = false;
+  clearInterval(schedulerTimer);
+  schedulerTimer = null;
+  currentPlayStep = -1;
+  displayStep = -1;
+  stepQueue = [];
+  document.getElementById('playBtn').textContent = 'Play';
+  clearPlayhead();
+}
+
+document.getElementById('playBtn').addEventListener('click', () => {
+  if (isPlaying) stopPlayback();
+  else startPlayback();
+});
+
+// reset timing on BPM change during playback
+document.getElementById('bpmInput').addEventListener('input', () => {
+  if (isPlaying) {
+    nextStepTime = getAudioCtx().currentTime;
+  }
+});
+
+// --- Visual playhead ---
+function updatePlayhead() {
+  if (!isPlaying) return;
+  // advance displayStep based on audio clock
+  const now = getAudioCtx().currentTime;
+  while (stepQueue.length > 1 && stepQueue[1].time <= now) {
+    stepQueue.shift();
+  }
+  if (stepQueue.length > 0 && stepQueue[0].time <= now) {
+    displayStep = stepQueue[0].step;
+  }
+  clearPlayhead();
+  if (displayStep < 0) { requestAnimationFrame(updatePlayhead); return; }
+  document.querySelectorAll('.step').forEach(el => {
+    const ti = parseInt(el.dataset.track);
+    const si = parseInt(el.dataset.step);
+    const track = TRACKS[ti];
+    let len = track.steps;
+    if (track.steps === 64 && trackLength[ti] < 64) len = trackLength[ti];
+    const activeStep = displayStep % len;
+    if (si === activeStep) el.classList.add('playing');
+  });
+  requestAnimationFrame(updatePlayhead);
+}
+
+function clearPlayhead() {
+  document.querySelectorAll('.step.playing').forEach(el => el.classList.remove('playing'));
+}
+
+// --- Init ---
+buildPatternNav();
+buildGrid();
+loadSamplesFromDB();
+</script>
+</body>
+</html>
