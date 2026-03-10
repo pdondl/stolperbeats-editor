@@ -400,16 +400,22 @@ function buildGrid() {
   const container = document.getElementById('gridContainer');
   container.innerHTML = '';
 
-  // 64-step tracks
   const longTracks = TRACKS.filter(t => t.steps === 64);
   const shortTracks = TRACKS.filter(t => t.steps === 16);
 
-  // step numbers for 64-step
-  container.appendChild(buildStepNumbers(64));
+  // step numbers (1-16, shared for all)
+  container.appendChild(buildStepNumbers(16));
 
-  longTracks.forEach(track => {
+  longTracks.forEach((track, idx) => {
     const ti = TRACKS.indexOf(track);
-    container.appendChild(buildTrackRow(track, ti));
+    if (idx > 0) {
+      const gap = document.createElement('div');
+      gap.style.height = '6px';
+      container.appendChild(gap);
+    }
+    for (let g = 0; g < 4; g++) {
+      container.appendChild(buildTrackRow(track, ti, g));
+    }
     container.appendChild(buildTrackControls(track, ti));
   });
 
@@ -418,12 +424,9 @@ function buildGrid() {
   spacer.style.height = '12px';
   container.appendChild(spacer);
 
-  // step numbers for 16-step
-  container.appendChild(buildStepNumbers(16));
-
   shortTracks.forEach(track => {
     const ti = TRACKS.indexOf(track);
-    container.appendChild(buildTrackRow(track, ti));
+    container.appendChild(buildTrackRow(track, ti, 0));
   });
 }
 
@@ -445,11 +448,12 @@ function buildStepNumbers(totalSteps) {
   return row;
 }
 
-function buildTrackRow(track, trackIndex) {
+// group: which 16-step slice (0-3 for 64-step tracks, always 0 for 16-step)
+function buildTrackRow(track, trackIndex, group) {
   const row = document.createElement('div');
   row.className = `track-row track-${track.name.toLowerCase()}`;
 
-  // drag & drop for samples
+  // drag & drop for samples (all rows accept drops)
   row.addEventListener('dragover', (e) => { e.preventDefault(); row.classList.add('drag-over'); });
   row.addEventListener('dragleave', () => { row.classList.remove('drag-over'); });
   row.addEventListener('drop', (e) => {
@@ -463,56 +467,61 @@ function buildTrackRow(track, trackIndex) {
 
   const label = document.createElement('div');
   label.className = 'track-label';
-  if (sampleBuffers[trackIndex]) label.classList.add('has-sample');
-  label.innerHTML = track.name;
-  if (sampleNames[trackIndex]) {
-    label.innerHTML += `<span class="sample-name">${sampleNames[trackIndex]}</span>`;
-  }
-  label.title = sampleNames[trackIndex] ? `Sample: ${sampleNames[trackIndex]} (click to remove)` : 'Drag audio file here to load sample';
-  if (sampleBuffers[trackIndex]) {
-    label.style.cursor = 'pointer';
-    label.addEventListener('click', () => {
-      sampleBuffers[trackIndex] = null;
-      sampleNames[trackIndex] = '';
-      deleteSampleFromDB(trackIndex);
-      buildGrid();
-      showStatus(`${track.name}: reverted to synth`);
-    });
+
+  if (group === 0) {
+    // first row: show track name + sample info
+    if (sampleBuffers[trackIndex]) label.classList.add('has-sample');
+    label.innerHTML = track.name;
+    if (sampleNames[trackIndex]) {
+      label.innerHTML += `<span class="sample-name">${sampleNames[trackIndex]}</span>`;
+    }
+    label.title = sampleNames[trackIndex] ? `Sample: ${sampleNames[trackIndex]} (click to remove)` : 'Drag audio file here to load sample';
+    if (sampleBuffers[trackIndex]) {
+      label.style.cursor = 'pointer';
+      label.addEventListener('click', () => {
+        sampleBuffers[trackIndex] = null;
+        sampleNames[trackIndex] = '';
+        deleteSampleFromDB(trackIndex);
+        buildGrid();
+        showStatus(`${track.name}: reverted to synth`);
+      });
+    }
+  } else {
+    // subsequent rows: show group range
+    const from = group * 16 + 1;
+    const to = from + 15;
+    label.innerHTML = `<span style="font-size:9px;color:#555">${from}-${to}</span>`;
   }
   row.appendChild(label);
 
   const steps = document.createElement('div');
   steps.className = 'steps';
 
-  const numGroups = track.steps / 16;
-  for (let g = 0; g < numGroups; g++) {
-    const group = document.createElement('div');
-    group.className = 'step-group';
-    for (let s = 0; s < 16; s++) {
-      const stepIdx = g * 16 + s;
-      const btn = document.createElement('div');
-      btn.className = 'step';
-      if (s % 4 === 0) btn.classList.add('beat-marker');
-      if (data[trackIndex][currentPattern][stepIdx]) btn.classList.add('on');
-      // dim steps beyond the repeat length for 64-step tracks
-      const len = (track.steps === 64) ? trackLength[trackIndex] : track.steps;
-      if (stepIdx >= len) btn.classList.add('dimmed');
-      btn.dataset.track = trackIndex;
-      btn.dataset.step = stepIdx;
-      btn.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        toggleStep(trackIndex, stepIdx, btn);
-        startDrag(trackIndex, btn);
-      });
-      btn.addEventListener('mouseenter', (e) => {
-        if (dragging && dragging.track === trackIndex) {
-          applyDrag(trackIndex, stepIdx, btn);
-        }
-      });
-      group.appendChild(btn);
-    }
-    steps.appendChild(group);
+  const stepGroup = document.createElement('div');
+  stepGroup.className = 'step-group';
+  for (let s = 0; s < 16; s++) {
+    const stepIdx = group * 16 + s;
+    const btn = document.createElement('div');
+    btn.className = 'step';
+    if (s % 4 === 0) btn.classList.add('beat-marker');
+    if (data[trackIndex][currentPattern][stepIdx]) btn.classList.add('on');
+    const len = (track.steps === 64) ? trackLength[trackIndex] : track.steps;
+    if (stepIdx >= len) btn.classList.add('dimmed');
+    btn.dataset.track = trackIndex;
+    btn.dataset.step = stepIdx;
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      toggleStep(trackIndex, stepIdx, btn);
+      startDrag(trackIndex, btn);
+    });
+    btn.addEventListener('mouseenter', (e) => {
+      if (dragging && dragging.track === trackIndex) {
+        applyDrag(trackIndex, stepIdx, btn);
+      }
+    });
+    stepGroup.appendChild(btn);
   }
+  steps.appendChild(stepGroup);
 
   row.appendChild(steps);
   return row;
