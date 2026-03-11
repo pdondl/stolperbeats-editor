@@ -168,7 +168,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-left: 70px;
+    margin-left: 98px;
     margin-bottom: 4px;
     margin-top: 2px;
   }
@@ -206,11 +206,32 @@
     outline-offset: -2px;
     z-index: 1;
   }
+  .mute-btn {
+    width: 22px;
+    height: 22px;
+    background: #16213e;
+    color: #a0a0c0;
+    border: 1px solid #0f3460;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 9px;
+    font-weight: bold;
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-right: 6px;
+    transition: background 0.15s;
+  }
+  .mute-btn:hover { background: #0f3460; }
+  .mute-btn.muted {
+    background: #e94560;
+    border-color: #e94560;
+    color: #fff;
+  }
 
   .step-numbers {
     display: flex;
     gap: 2px;
-    margin-left: 70px;
+    margin-left: 98px;
     margin-bottom: 4px;
   }
   .step-numbers .step-group { display: flex; gap: 2px; margin-right: 6px; }
@@ -225,7 +246,7 @@
   .section-label {
     color: #0f3460;
     font-size: 10px;
-    margin-left: 70px;
+    margin-left: 98px;
     margin-bottom: 2px;
     letter-spacing: 1px;
   }
@@ -311,6 +332,15 @@ let trackLength = { 0: 64, 1: 64 };
 // custom sample buffers per track (null = use synth)
 let sampleBuffers = [null, null, null, null, null, null];
 let sampleNames = ['', '', '', '', '', ''];
+
+// mute state per track (sound only)
+let trackMuted = [false, false, false, false, false, false];
+
+// choke groups: tracks in same group cut each other off
+// HIHAT1 (index 2) and HIHAT2 (index 3) share choke group 'hihat'
+const CHOKE_GROUPS = { 2: 'hihat', 3: 'hihat' };
+// active gain nodes per choke group, keyed by group name
+let activeChokeNodes = {};
 
 // --- IndexedDB for sample persistence ---
 const DB_NAME = 'stolperbeats-samples';
@@ -493,6 +523,26 @@ function buildTrackRow(track, trackIndex, group) {
     label.innerHTML = `<span style="font-size:9px;color:#555">${from}-${to}</span>`;
   }
   row.appendChild(label);
+
+  // mute button on first row only
+  if (group === 0) {
+    const muteBtn = document.createElement('button');
+    muteBtn.className = 'mute-btn' + (trackMuted[trackIndex] ? ' muted' : '');
+    muteBtn.textContent = 'M';
+    muteBtn.title = trackMuted[trackIndex] ? 'Unmute' : 'Mute';
+    muteBtn.addEventListener('click', () => {
+      trackMuted[trackIndex] = !trackMuted[trackIndex];
+      muteBtn.classList.toggle('muted', trackMuted[trackIndex]);
+      muteBtn.title = trackMuted[trackIndex] ? 'Unmute' : 'Mute';
+    });
+    row.appendChild(muteBtn);
+  } else {
+    // spacer to keep steps aligned
+    const spacer = document.createElement('div');
+    spacer.style.width = '28px';
+    spacer.style.flexShrink = '0';
+    row.appendChild(spacer);
+  }
 
   const steps = document.createElement('div');
   steps.className = 'steps';
@@ -847,6 +897,7 @@ function playHihat1(ctx, time) {
   noise.start(time);
   noise.stop(time + 0.05);
   cleanupOnEnd([gain, filt, noise]);
+  return { gain, source: noise };
 }
 
 function playHihat2(ctx, time) {
@@ -865,6 +916,7 @@ function playHihat2(ctx, time) {
   noise.start(time);
   noise.stop(time + 0.5);
   cleanupOnEnd([gain, filt, noise]);
+  return { gain, source: noise };
 }
 
 function playPerc1(ctx, time) {
@@ -941,6 +993,21 @@ function playSampleBuffer(ctx, time, buffer) {
   gain.connect(ctx.destination);
   source.start(time);
   source.onended = () => { source.disconnect(); gain.disconnect(); };
+  return { gain, source };
+}
+
+function chokeGroup(trackIndex, time) {
+  const group = CHOKE_GROUPS[trackIndex];
+  if (!group) return;
+  const active = activeChokeNodes[group];
+  if (active) {
+    // fast fade-out to avoid click
+    active.gain.gain.setValueAtTime(active.gain.gain.value, time);
+    active.gain.gain.linearRampToValueAtTime(0, time + 0.005);
+    if (active.source && active.source.stop) {
+      try { active.source.stop(time + 0.01); } catch(e) {}
+    }
+  }
 }
 
 function scheduleStep(stepIndex, time) {
@@ -948,10 +1015,15 @@ function scheduleStep(stepIndex, time) {
   TRACKS.forEach((track, ti) => {
     const s = track.steps === 16 ? stepIndex % 16 : stepIndex;
     if (data[ti][currentPattern][s]) {
+      if (trackMuted[ti]) return;
+      // choke: cut off other sounds in same choke group
+      chokeGroup(ti, time);
       if (sampleBuffers[ti]) {
-        playSampleBuffer(ctx, time, sampleBuffers[ti]);
+        const nodes = playSampleBuffer(ctx, time, sampleBuffers[ti]);
+        if (CHOKE_GROUPS[ti]) activeChokeNodes[CHOKE_GROUPS[ti]] = nodes;
       } else {
-        SOUND_FNS[ti](ctx, time);
+        const nodes = SOUND_FNS[ti](ctx, time);
+        if (CHOKE_GROUPS[ti] && nodes) activeChokeNodes[CHOKE_GROUPS[ti]] = nodes;
       }
     }
   });
@@ -994,6 +1066,7 @@ function stopPlayback() {
   currentPlayStep = -1;
   displayStep = -1;
   stepQueue = [];
+  activeChokeNodes = {};
   document.getElementById('playBtn').textContent = 'Play';
   clearPlayhead();
 }
