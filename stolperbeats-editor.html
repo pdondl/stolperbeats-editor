@@ -345,13 +345,13 @@
   <b>Patterns:</b> Click the numbered buttons to switch between the 24 patterns. Buttons with a <span style="color:#53d769">green</span> underline contain data.<br>
   <b>Steps:</b> Click a step to toggle it on/off. Kick and Snare have 64 steps (shown as 4 rows of 16); HiHat and Perc tracks have 16 steps.<br>
   <b>Track length:</b> Kick and Snare tracks can be set to shorter lengths (16/32/48) &mdash; extra steps are dimmed and the pattern loops at the set length.<br>
-  <b>Samples:</b> Drag &amp; drop a <code>.wav</code> file onto a track label to assign a custom sample for preview. Samples are stored in the browser and persist across sessions.<br>
   <b>Mute:</b> Click the <b>M</b> button next to a track to mute it during playback.<br>
   <b>Choke:</b> HiHat1 and HiHat2 share a choke group &mdash; triggering one cuts off the other.<br>
+  <b>Fill x4:</b> For 64-step tracks (Kick, Snare) &mdash; copies the first 16 steps into all remaining slots (17&ndash;64). <em>This overwrites whatever was in those slots</em>, so use it to quickly tile a 16-step idea across the full bar.<br>
   <b>Copy / Paste:</b> Copy the current pattern and paste it into another pattern slot.
 
   <details style="margin-top:10px">
-    <summary style="cursor:pointer; color:#888">Custom samples</summary>
+    <summary style="cursor:pointer; color:#888">Sound and custom samples</summary>
     <div style="margin-top:6px; padding-left:10px; border-left:2px solid #0f3460;">
       By default, each track uses a built-in synth voice. To use your own sounds:<br>
       <b>1.</b> Drag &amp; drop a <code>.wav</code> file onto the track label (e.g. &ldquo;KICK&rdquo;) on the left. The label turns <span style="color:#53d769">green</span> and shows the filename.<br>
@@ -366,7 +366,8 @@
     <div style="margin-top:6px; padding-left:10px; border-left:2px solid #0f3460;">
       <b>Shuffle (4&ndash;9):</b> selects which of the 6 Stolperbeats shuffle patterns to use. Each rearranges the micro-timing of the 4 substeps within a beat.<br>
       <b>Timing:</b> Straight, Trip, Shake, Push, Clave &mdash; sets the rhythmic feel (triplet, swing, push, clave groove).<br>
-      <b>Feeling:</b> Tight, Rolls, Flam, Slop &mdash; controls how precisely hits land on the grid.
+      <b>Feeling:</b> Tight, Rolls, Flam, Slop &mdash; controls how precisely hits land on the grid.<br>
+      <em>These parameters are for the audio preview only and are not saved in the exported <code>.txt</code> file &mdash; on the hardware, shuffle is set directly on the module.</em>
     </div>
   </details>
 </div>
